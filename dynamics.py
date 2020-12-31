@@ -66,6 +66,61 @@ for t in range(240):
         plt.tight_layout();
         fig.savefig('figures/%03d.png'%j, dpi=300)
         j+=1
+              
+# ======================Initial inundation timing====================
+i=0
+k=1
+fig= plt.figure(figsize=(18,20))
+for date in events:
+    first=True
+    for scenario in ['base period','future','change']:
+        ax=fig.add_subplot(5,3,k)
+        
+#         dr= pd.date_range(start=date, freq='H', periods=len(splotter.depth))
+        if scenario=='change':
+            base= SWWs[i-2].depth
+            future=SWWs[i-1].depth
+            itime, inds= np.where(base>0.3)
+            inundation_time_base= np.zeros((_depth.shape[1]))
+            for j in np.unique(sorted(inds)):
+                inundation_time_base[j]= np.nanmin(itime[inds==j])     
+            
+            itime, inds= np.where(future>0.3)
+            inundation_time_future= np.zeros((_depth.shape[1]))
+            for j in np.unique(sorted(inds)):
+                inundation_time_future[j]= np.nanmin(itime[inds==j])      
+            diff= inundation_time_future- inundation_time_base
+            masks= (np.nanmax(base, axis=0)>0.3) & (np.nanmax(future,axis=0)>0.3)
+            diff= diff[(~np.isnan(diff)) & masks]
+            ax.hist(diff, color='grey', edgecolor='k', density=True, bins=20, log=True)    
+            ax.vlines(0,0,3,color='r',linestyle='dashed')
+            ax.vlines(diff.mean(),0,3,color='k',linestyle='dashed')
+            ax.set_xlabel('Difference (hours)')
+            ax.set_ylabel('Density')
+#             ax.set_xticks(np.array(list(ax.get_xticks()) + [diff.mean()]).astype(int))
+            print('event %s, mean difference in hours %.2f, positive percentage %.2f, negative percentage %.2f'%(date, diff.mean(),
+                                                                                                                float((diff>0).sum())/len(diff)*100.,
+                                                                                                                float((diff<0).sum())/len(diff)*100.))
+            k+=1
+        else:
+            splotter=SWWs[i]
+            _depth= splotter.depth.copy()
+            itime, inds= np.where(_depth>0.3)
+            inundation_time= np.zeros((_depth.shape[1]))
+            for j in np.unique(sorted(inds)):
+                inundation_time[j]= np.nanmin(itime[inds==j])
+            splotter.triang.set_mask(inundation_time<1)
+            plt.tripcolor(splotter.triang, inundation_time,  cmap=cm.get_cmap('jet',11), vmin=0,vmax=220)
+            plt.title(scenario, fontsize=15, weight='bold');
+            if first:
+                plt.ylabel(str(date))
+                first=False
+            cbar=plt.colorbar(extend='both', ticks=np.linspace(0,220,12))
+#             plt.axis('off');
+            plt.xticks([])
+            plt.yticks([])
+            i+=1
+            k+=1
 
 # ==================================HAZARD PLOT=======================
 from matplotlib.colors import ListedColormap
